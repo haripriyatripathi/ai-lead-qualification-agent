@@ -1,0 +1,134 @@
+.lead-capture-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 1rem;
+  min-height: 100vh;
+  align-items: flex-start;
+}
+
+.lead-capture-card {
+  width: 100%;
+  max-width: 600px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 2rem;
+}
+
+.lead-capture-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.lead-capture-subtitle {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.lead-capture-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.lead-capture-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.lead-capture-form .form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.form-input,
+.form-textarea {
+  padding: 0.6rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #1a1a2e;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+
+.form-textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.lead-capture-error {
+  padding: 0.75rem 1rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.btn-primary {
+  display: inline-block;
+  padding: 0.65rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff;
+  background: #6366f1;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-decoration: none;
+  text-align: center;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.lead-capture-submit {
+  margin-top: 0.5rem;
+  align-self: flex-start;
+}
+
+.lead-capture-success-card {
+  text-align: center;
+}
+
+.lead-capture-success-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.lead-capture-success-text {
+  margin: 0 0 1.5rem 0;
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.btn-go-dashboard {
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .lead-capture-card {
+    padding: 1.5rem 1rem;
+  }
+}

@@ -1,0 +1,46 @@
+# Cursor AI Development Rules
+
+## Core Philosophy
+- Use an AI-first approach for problem solving and development
+- Treat the system as a collection of agents, not just functions
+- Focus on solving high-impact business problems
+
+## Agent Design Principles
+- Break workflows into clear, modular agent steps
+- Use LLMs for reasoning, classification, and decision-making
+- Prefer structured JSON outputs over free text
+- Maintain separation between reasoning, execution, and output
+
+## Code Quality
+- Write clean, modular, and reusable code
+- Prefer functions and services over monolithic scripts
+- Use clear naming conventions and docstrings
+- Keep logic simple and readable
+
+## AI Usage Guidelines
+- Avoid hardcoding logic when AI reasoning can be applied
+- Use deterministic logic (rules/engines) where reliability is required
+- Combine AI + rule-based systems for better performance
+- Log inputs/outputs for transparency and debugging
+
+## Data & Security
+- Never store API keys or secrets in code
+- Use environment variables for configuration
+- Sanitize and validate all inputs
+- Ensure safe handling of user data
+
+## Performance & Evaluation
+- Optimize for fast iteration and response time
+- Design measurable performance metrics
+- Continuously evaluate output quality
+- Prefer scalable and async workflows where needed
+
+## Development Workflow
+- Build iteratively with small testable components
+- Validate each stage of the pipeline independently
+- Keep the system easy to debug and extend
+
+## Output Standards
+- Ensure outputs are structured, actionable, and concise
+- Prioritize clarity over verbosity
+- Generate business-relevant insights, not just raw data
