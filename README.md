@@ -1,233 +1,279 @@
-# LeadiAgent – AI Lead Qualification & Outreach Agent
+# ai lead qualification & outreach agent
 
-AI-powered B2B lead qualification system that ingests inbound leads, enriches company data, analyzes intent using a local LLM, scores opportunities with a transparent rule engine, and generates AI-assisted outreach emails with human-in-the-loop approval.
+ai-assisted b2b lead qualification and outreach system built with fastapi, celery, redis, postgresql, ollama, react, and vite.
 
----
-## 🚀 Quest Submission Context
+this repository is a modified fork of the open-source `ai-lead-qualification-agent` project.
 
-This project is submitted as part of an AI Agent development quest focused on building AI-native systems.
+repository: https://github.com/haripriyatripathi/ai-lead-qualification-agent
 
-The goal is not just to build software, but to design agents that can autonomously solve high-impact business problems using AI-first approaches.
+## overview
 
----
-## 🎯 Agent Purpose
+the system accepts inbound leads, enriches company data, classifies lead attributes with a local llm, calculates a deterministic score, generates a short summary, and creates an email draft for high-priority leads.
 
-This AI agent is designed to **automatically qualify, prioritize, and engage B2B leads**.
-
-It transforms raw inbound leads into structured, high-value opportunities by combining:
-- AI-based intent analysis
-- Deterministic scoring
-- Automated outreach generation
-
-The primary objective is to **maximize revenue efficiency by focusing on high-quality leads**.
----
-## 🧠 Problem Definition
-
-### Problem
-Businesses receive large volumes of leads but lack an intelligent system to **prioritize and act on them effectively**.
-
-### Why This Problem
-Unqualified leads waste time, reduce sales efficiency, and directly impact revenue.
-
-### Why This is #1 Priority
-Improving lead qualification directly improves:
-- Conversion rates
-- Sales productivity
-- Business growth
-
-This makes it one of the highest ROI problems in any organization.
----
-
-## Demo Workflow
-
-The complete system pipeline from submission to outreach:
-
-1. **User submits lead via web form** — Lead capture frontend (`lead-capture`) or API sends lead data to the backend.
-2. **Lead stored in database** — API persists the lead and enqueues a background job.
-3. **Background worker processes lead** — Celery worker picks up the job and runs the pipeline.
-4. **Enrichment agent fetches company website metadata** — Domain extracted from email; homepage fetched for title, description, content snippet, and tech detection.
-5. **AI classification agent analyzes** — Local LLM (Ollama) classifies:
-   - **Authority** (C-Level, VP, Director, Manager, etc.)
-   - **Intent** (Active Buying, Evaluation, Researching, Casual, Academic)
-   - **Firmographic fit** (High / Medium / Low)
-   - **Tech opportunity** and **industry** / **company size**
-6. **Scoring engine calculates opportunity score** — Deterministic 5-category model (email trust, authority, firmographic, tech, intent) → priority band.
-7. **AI generates** — Short lead summary (5–10 words) and, for high-priority leads, an email reply draft.
-8. **Dashboard shows results** — Analytics, lead table, filters, lead detail, confidence score.
-9. **User reviews AI email and optionally edits before sending** — View/Edit/Send from the dashboard with human-in-the-loop control.
-
----
-
-## Features
-
-### AI Lead Analysis
-
-- **Authority detection** — C-Level, VP, Director, Manager, Individual Contributor, Student, Unknown.
-- **Intent classification** — Active Buying, Evaluation, Researching, Casual, Academic.
-- **Industry inference** — From lead message and website metadata.
-- **Company size estimation** — Startup, SME, Enterprise, Unknown.
-
-### Lead Enrichment
-
-- **Domain-based company metadata extraction** — Uses email domain to fetch company homepage.
-- **Website scraping** — Title, meta description, first ~1k characters of body text.
-- **Lightweight tech stack detection** — React, WordPress, AWS, legacy signals, etc.
-
-### Intelligent Scoring Engine
-
-Multi-factor deterministic scoring (no LLM for scores):
-
-| Category           | Max | Source                    |
-|--------------------|-----|---------------------------|
-| Email Trust        | 20  | Corporate / free / .edu   |
-| Authority          | 25  | LLM classification       |
-| Firmographic Fit   | 25  | LLM inference             |
-| Tech Opportunity   | 15  | LLM + website analysis    |
-| Intent             | 15  | LLM intent classification |
-
-**Priority levels:** **High** (80+), **Medium** (60–79), **Low** (40–59), **Very Low** (&lt;40), **Rejected** (Academic intent).
-
-### AI Message Summary
-
-Each lead message is summarized into a **5–10 word** description for quick review in the dashboard.
-
-*Example:* *"CEO exploring AI automation for sales operations"*
-
-### AI Email Draft Generation
-
-- High-priority leads automatically receive an **AI-generated email draft**.
-- Users can **view** draft, **edit** it, and **send** via SMTP from the dashboard.
-- **Human-in-the-loop** control ensures AI suggestions are reviewed before sending.
-
-### Analytics Dashboard
-
-React dashboard provides:
-
-- Lead table with **search** and **filters** (priority, industry, role).
-- **Priority** and **score** visualization (badges, progress bars).
-- **Lead summary** and **confidence score**.
-- **Email workflow** — View / Edit / Send with status (Pending / Sent).
-
-### Event Logging
-
-Every processing step is recorded in `lead_events`:
-
-- `lead_received` / `enqueued`
-- `lead_analyzed`
-- `lead_scored`
-- `email_generated` / `email_sent` / `email_failed`
-- `validation_adjustment` (when applicable)
-
-This creates a **transparent audit trail** for each lead.
-
----
-
-## Architecture Overview
-
-The system follows an **event-driven AI pipeline** using asynchronous workers. The API accepts leads and enqueues jobs; the Celery worker runs enrichment, LLM classification, scoring, and draft generation without blocking the API. All state is stored in PostgreSQL with an audit trail in `lead_events`.
-
-```
-┌─────────────────┐     POST /leads      ┌─────────────────┐
-│   Frontend      │ ──────────────────►  │   FastAPI       │
-│   (React/Vite)  │ ◄──────────────────  │   API :8000     │
-│   :5173         │   GET /leads, etc.   │                 │
-└─────────────────┘                      └────────┬────────┘
-                                                  │
-                   ┌─────────────────────────────┼─────────────────────────────┐
-                   │                             │                             │
-                   ▼                             ▼                             ▼
-            ┌─────────────┐               ┌─────────────┐               ┌─────────────┐
-            │  PostgreSQL │               │    Redis    │               │   Ollama    │
-            │   :5432     │               │   :6379     │               │   :11434     │
-            │  (leads,    │               │  (Celery    │               │  (LLM)      │
-            │   events,   │               │   broker)   │               │             │
-            │   rules)    │               └──────┬──────┘               └──────▲──────┘
-            └──────▲──────┘                      │                             │
-                   │                             │  process_lead               │
-                   │                             ▼                             │
-                   │                      ┌─────────────┐                       │
-                   └─────────────────────│   Celery    │───────────────────────┘
-                         read/write      │   Worker    │   analyze_lead,
-                                         │             │   summarize, draft
-                                         └─────────────┘
+```text
+lead submission
+      |
+      v
+fastapi api
+      |
+      v
+postgresql + redis
+      |
+      v
+celery worker
+      |
+      +--> website enrichment
+      +--> llm classification
+      +--> deterministic scoring
+      +--> lead summary
+      +--> email draft
+      |
+      v
+react dashboard
 ```
 
-- **API (FastAPI)** — Receives leads, enqueues jobs, serves leads/analytics/scoring rules and email draft/send. Runs migrations on startup.
-- **Worker (Celery)** — Consumes `process_lead` from Redis: enrich → LLM classification → scoring → persist → message summary + AI email draft (high-priority).
-- **PostgreSQL** — Stores leads, `lead_events` (audit), `scoring_rules`. Async driver for API; sync for worker.
-- **Redis** — Celery broker and result backend.
-- **Ollama** — Local LLM for classification and text generation (summaries, reply drafts). Default model: `llama3`.
-- **Frontend (React + Vite)** — Dashboard: analytics cards, leads table (filter/sort/search), lead detail modal, scoring rules page, email modal (View/Edit/Send).
+## features
 
----
+### lead intake
 
-## AI Processing Pipeline
+- accepts leads through the lead capture frontend or `post /leads`
+- stores lead data in postgresql
+- queues processing through redis and celery
 
-Lead submission triggers a multi-stage processing workflow:
+### company enrichment
 
+- extracts the domain from the lead email
+- fetches the company homepage
+- extracts title, meta description, and page content
+- detects basic technology signals such as react, wordpress, and aws
+
+### llm classification
+
+ollama is used for local llm processing.
+
+the classifier extracts:
+
+- authority
+- intent
+- industry
+- company size
+- firmographic fit
+- technology opportunity
+
+### scoring
+
+lead scoring is deterministic and does not use the llm directly.
+
+| category | max score | source |
+|---|---:|---|
+| email trust | 20 | corporate / free / .edu |
+| authority | 25 | llm classification |
+| firmographic fit | 25 | llm inference |
+| technology opportunity | 15 | llm + website analysis |
+| intent | 15 | llm classification |
+
+priority bands:
+
+- high: 80+
+- medium: 60-79
+- low: 40-59
+- very low: below 40
+- rejected: academic intent
+
+### ai summary and email draft
+
+- generates a 5-10 word lead summary
+- generates an email draft for high-priority leads
+- supports view, edit, and send from the dashboard
+- uses smtp for email delivery
+- requires human approval before sending
+
+### dashboard
+
+- analytics
+- lead search and filters
+- priority and score display
+- lead details
+- confidence score
+- scoring rules
+- email draft view/edit/send
+- email status
+
+### event logging
+
+processing events are stored in `lead_events`.
+
+```text
+lead_received
+enqueued
+lead_analyzed
+lead_scored
+email_generated
+email_sent
+email_failed
+validation_adjustment
 ```
-Lead Received
-      ↓
-Enrichment Agent
-(domain + website metadata)
-      ↓
-Analysis Agent
-(intent, authority, firmographic classification)
-      ↓
-Scoring Agent
-(rule-based opportunity scoring)
-      ↓
-Outreach Agent
-(AI email draft generation)
+
+## architecture
+
+the api accepts leads and queues background processing. the celery worker handles enrichment, llm classification, scoring, and email generation.
+
+```text
+                    +------------------+
+                    |   react/vite     |
+                    |    dashboard     |
+                    |      :5173       |
+                    +--------+---------+
+                             |
+                             v
+                    +------------------+
+                    |     fastapi      |
+                    |      :8000       |
+                    +--------+---------+
+                             |
+              +--------------+--------------+
+              |                             |
+              v                             v
+      +---------------+              +---------------+
+      |  postgresql   |              |     redis     |
+      |     :5432     |              |     :6379     |
+      +---------------+              +-------+-------+
+                                              |
+                                              v
+                                      +---------------+
+                                      | celery worker |
+                                      +-------+-------+
+                                              |
+                                              v
+                                      +---------------+
+                                      |    ollama     |
+                                      |    :11434     |
+                                      +---------------+
 ```
 
----
+components:
 
-## Tech Stack
+- fastapi: api, validation, routes, cors, migrations
+- celery: background lead processing
+- redis: celery broker and result backend
+- postgresql: leads, events, scoring rules
+- ollama: local llm inference
+- react + vite: dashboard
+- docker compose: local service orchestration
 
-| Layer        | Technology |
-|-------------|------------|
-| **Backend** | FastAPI, Python 3.11+, Uvicorn, Pydantic, SQLAlchemy (async), Alembic |
-| **Worker**  | Celery, Redis, sync SQLAlchemy (psycopg2) |
-| **AI Layer**| Ollama, Llama3 — classification, summarization, reply draft |
-| **Database**| PostgreSQL 15 |
-| **Enrichment** | requests, BeautifulSoup4 — fetch + parse homepage; tech detection |
-| **Email**   | SMTP (e.g. Gmail App Password) via `EmailSender` |
-| **Frontend**| React 18, Vite 5, Axios — CSS-only UI (no component library) |
-| **Infrastructure** | Docker, Docker Compose |
+## processing pipeline
 
----
+```text
+1. receive lead
+2. validate and store lead
+3. enqueue background task
+4. enrich company website
+5. classify lead with llm
+6. calculate deterministic score
+7. generate lead summary
+8. generate email draft for high-priority leads
+9. update dashboard
+10. optionally send email after user approval
+```
 
-## Running the Project
+## tech stack
 
-### Prerequisites
+| layer | technology |
+|---|---|
+| backend | python 3.11+, fastapi, uvicorn, pydantic |
+| database | postgresql 15, sqlalchemy, alembic |
+| worker | celery, redis |
+| ai | ollama, llama3 |
+| enrichment | requests, beautifulsoup4 |
+| frontend | react 18, vite 5, axios |
+| email | smtp |
+| infrastructure | docker, docker compose |
 
-- **Docker** and **Docker Compose**
-- (Optional) **Node 18+** for running the React dashboard and lead-capture form locally
+## project structure
 
-### Start backend services
+```text
+ai-lead-qualification-agent/
+|
++-- docker-compose.yml
++-- .env.example
++-- pyproject.toml
+|
++-- src/
+|   +-- main.py
+|   +-- config.py
+|   +-- api/
+|   |   +-- routes/
+|   +-- db/
+|   |   +-- models/
+|   |   +-- migrations/
+|   +-- services/
+|   |   +-- llm
+|   |   +-- scoring
+|   |   +-- enrichment
+|   |   +-- email_sender
+|   |   +-- lead_service
+|   +-- worker/
+|       +-- celery_app
+|       +-- tasks
+|
++-- lead-dashboard/
+|   +-- src/
+|   |   +-- App.jsx
+|   |   +-- services/api.js
+|   |   +-- components/
+|   +-- package.json
+|
++-- lead-capture/
+    +-- src/
+    |   +-- App.jsx
+    |   +-- services/api.js
+    +-- package.json
+```
 
-From the project root:
+## requirements
+
+- docker
+- docker compose
+- node 18+ for the react applications
+
+## setup
+
+clone the repository:
+
+```bash
+git clone https://github.com/haripriyatripathi/ai-lead-qualification-agent.git
+cd ai-lead-qualification-agent
+```
+
+start backend services:
 
 ```bash
 docker compose up -d
 ```
 
-This starts:
+services:
 
-- **API** at http://localhost:8000 (migrations run on startup)
-- **Celery worker**
-- **PostgreSQL** (5432), **Redis** (6379), **Ollama** (11434)
+- api: `http://localhost:8000`
+- celery worker
+- postgresql: `localhost:5432`
+- redis: `localhost:6379`
+- ollama: `localhost:11434`
 
-### Pull LLM model
+### ollama model
 
-First time, pull the Ollama model:
+the default model is `llama3`.
 
 ```bash
 docker compose exec ollama ollama pull llama3
 ```
 
-### Run frontend dashboard
+check installed models:
+
+```bash
+docker compose exec ollama ollama list
+```
+
+### dashboard
 
 ```bash
 cd lead-dashboard
@@ -235,11 +281,15 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5173**. The app talks to the API at http://localhost:8000. CORS allows the dashboard origin.
+open:
 
-### Submit test lead
+```text
+http://localhost:5173
+```
 
-**Option A — Lead capture form (separate app):**
+### lead capture
+
+from the project root, open another terminal:
 
 ```bash
 cd lead-capture
@@ -247,190 +297,158 @@ npm install
 npm run dev
 ```
 
-Open **http://localhost:5174** (or the port Vite shows). Fill the form and submit. Ensure the API allows your lead-capture origin in CORS (see `src/main.py`).
+open:
 
-**Option B — API directly:**
-
-```bash
-curl -X POST http://localhost:8000/leads \
-  -H "Content-Type: application/json" \
-  -d '{"source":"web-form","raw_payload":{"email":"ceo@acme.com","company":"Acme Inc","name":"Jane","role":"CEO","message":"Interested in AI automation for sales"}}'
+```text
+http://localhost:5174
 ```
 
-Response: `{"id":1,"status":"accepted"}` (202). The worker processes the lead asynchronously.
+### api documentation
 
-### SMTP (optional, for sending emails from dashboard)
+```text
+http://localhost:8000/docs
+```
 
-Edit **`.env.example`** or create **`.env`** with your SMTP settings. Example for Gmail:
+## api
+
+### submit lead
+
+`post /leads`
+
+```json
+{
+  "source": "web-form",
+  "raw_payload": {
+    "name": "jane smith",
+    "email": "jane@acme.com",
+    "company": "acme inc",
+    "role": "vp of sales",
+    "message": "we are evaluating ai tools for our sales team."
+  }
+}
+```
+
+response:
+
+```json
+{
+  "id": 1,
+  "status": "accepted"
+}
+```
+
+the api returns `202` and the celery worker processes the lead asynchronously.
+
+### routes
+
+```text
+get   /health
+get   /health/ready
+get   /scoring-rules
+patch /scoring-rules/{rule_id}
+get   /leads
+post  /leads
+get   /leads/{lead_id}
+get   /leads/{lead_id}/email
+post  /leads/{lead_id}/send-email
+get   /analytics
+```
+
+## smtp configuration
+
+email sending is optional.
+
+create `.env` using `.env.example` and configure:
 
 ```env
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM_EMAIL=your-email@gmail.com
+smtp_host=smtp.gmail.com
+smtp_port=587
+smtp_username=your-email@gmail.com
+smtp_password=your-app-password
+smtp_from_email=your-email@gmail.com
 ```
 
-Use a [Gmail App Password](https://support.google.com/accounts/answer/185833). Restart API after changing env:
+restart services after changing environment variables:
 
 ```bash
 docker compose down
 docker compose up -d
 ```
 
-### Useful commands
+## useful commands
 
-| Task | Command |
-|------|--------|
-| Run migrations by hand | `docker compose exec api alembic upgrade head` |
-| View API docs | http://localhost:8000/docs |
-| Restart after code/env changes | `docker compose down` then `docker compose up -d` |
+```bash
+# start services
+docker compose up -d
 
----
+# stop services
+docker compose down
 
-## Example API Request
+# service status
+docker compose ps
 
-**POST** `/leads`
+# api logs
+docker compose logs --tail=50 api
 
-```json
-{
-  "source": "web-form",
-  "raw_payload": {
-    "name": "Jane Smith",
-    "email": "jane@acme.com",
-    "company": "Acme Inc",
-    "role": "VP of Sales",
-    "message": "We are evaluating AI tools for our sales team. Would like to see a demo next week."
-  }
-}
+# worker logs
+docker compose logs --tail=50 worker
+
+# ollama logs
+docker compose logs --tail=50 ollama
+
+# run migrations
+docker compose exec api alembic upgrade head
 ```
 
-Response: `{"id": 1, "status": "accepted"}` (HTTP 202)
+## environment variables
 
----
+| variable | description |
+|---|---|
+| `database_url` | postgresql connection url |
+| `redis_url` | redis connection url |
+| `ollama_base_url` | ollama api url |
+| `ollama_model` | llm model name |
+| `smtp_host` | smtp server |
+| `smtp_port` | smtp port |
+| `smtp_username` | smtp username |
+| `smtp_password` | smtp password |
+| `smtp_from_email` | sender email |
 
-## Example Lead Processing Result
+see `.env.example` for the full configuration.
 
-After the worker runs, the lead record and dashboard show:
+## development
 
-- **Lead summary** — e.g. *"VP evaluating AI tools for sales team demo"*
-- **Priority score** — e.g. **High** (85), with breakdown: Email Trust 20, Authority 25, Firmographic 15, Tech 8, Intent 15
-- **Email draft generated** — AI-generated reply available in the dashboard; user can view, edit, and send via SMTP
+the main processing services are separated into independent modules:
 
----
-## 📊 Performance Metrics
-
-### Final Score: **8650 / 10000**
-
-### Evaluation Criteria
-
-- Classification Accuracy: 90%
-- Scoring Precision: 85%
-- Email Quality: 88%
-- Processing Speed: 80%
-
-### Calculation Method
-
-Weighted formula:
-
-Score =  
-(0.3 × Accuracy) +  
-(0.25 × Precision) +  
-(0.25 × Email Quality) +  
-(0.2 × Speed)
-
-This evaluates both **AI quality and business usefulness**.
----
-## ⚔️ Benchmark Comparison (vs Default Claude)
-
-| Capability | Default Claude | This Agent |
-|-----------|---------------|-----------|
-| Lead Analysis | Generic | Structured + contextual |
-| Decision Making | None | Rule-based scoring |
-| Workflow | Stateless | Multi-stage pipeline |
-| Output Quality | Basic | Business-ready insights |
-| Automation | No | End-to-end |
-
-This agent improves from **generic AI responses → actionable business intelligence**.
----
-## 🧩 Cursor Compatibility
-
-This project is designed with an **AI-first development approach** and includes a `.cursorrules` configuration.
-
-Key principles:
-- Modular agent design
-- AI-driven decision making
-- Structured outputs (JSON)
-- Rapid iteration workflow
-
-This ensures compatibility with Cursor-style multi-agent development environments.
----
-
-## Project Structure
-
-```
-leadiagent/
-├── docker-compose.yml       # API, worker, postgres, redis, ollama
-├── .env.example             # Env template (SMTP, DB, Ollama, etc.)
-├── pyproject.toml           # Python deps and project config
-├── src/
-│   ├── main.py              # FastAPI app, CORS, lifespan, routes
-│   ├── config.py            # Pydantic settings from env
-│   ├── api/routes/          # leads, analytics, scoring_rules
-│   ├── db/                  # models, session, migrations
-│   ├── services/            # llm, scoring, enrichment, email_sender, lead_service
-│   └── worker/              # celery_app, tasks (process_lead)
-├── lead-dashboard/          # React + Vite analytics dashboard
-│   ├── src/
-│   │   ├── App.jsx
-│   │   ├── services/api.js
-│   │   └── components/      # AnalyticsCards, LeadsTable, LeadDetailModal, EmailModal, ScoringRulesPage
-│   └── package.json
-└── lead-capture/             # Standalone React + Vite lead submission form
-    ├── src/
-    │   ├── App.jsx
-    │   └── services/api.js
-    └── package.json
+```text
+api
+ |
+ +-- lead service
+ +-- enrichment service
+ +-- llm service
+ +-- scoring service
+ +-- email sender
+ |
+ +-- celery worker
 ```
 
----
+long-running enrichment and llm tasks run in the background instead of blocking api requests.
 
-## Environment Reference
+## planned extensions
 
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL URL (async: `postgresql+asyncpg://...`) |
-| `REDIS_URL` | Redis URL for Celery (e.g. `redis://redis:6379/0`) |
-| `OLLAMA_BASE_URL` | Ollama API (e.g. `http://ollama:11434`) |
-| `OLLAMA_MODEL` | Model name (e.g. `llama3`) |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM_EMAIL` | SMTP for sending reply emails from the dashboard |
+- n8n / make / zapier workflow integration
+- crm integration
+- richer company enrichment
+- lead segmentation
+- competitor data collection
+- market intelligence workflows
+- automated follow-up sequences
+- scoring feedback loop
+- improved logging and monitoring
+- multi-agent orchestration
 
-See `.env.example` for a full template.
+## license
 
----
+mit
 
-## Future Improvements
-
-- **Multi-agent orchestration** — Coordinate enrichment, analysis, and outreach as distinct agents with clearer handoffs.
-- **Learning feedback loop** — Use send/open/reply signals to tune scoring accuracy over time.
-- **CRM integrations** — Sync leads and activities with HubSpot, Salesforce, or similar.
-- **Automated follow-up sequences** — Multi-touch sequences with AI-generated follow-up emails.
-- **Improved company enrichment** — Deeper firmographic and technographic data (e.g. LinkedIn, Clearbit-style APIs).
-
----
-
-## License
-
-MIT
-
----
-## 📎 Other AI Systems Built
-
-In addition to this agent, I have developed:
-
-- Workforce Automation System (HR + AI chatbot + attendance + payroll)
-- TaxFlow (AI-powered tax filing automation with workflow engine)
-- AI Customer Support Agent (intent-based backend execution)
-- Municipal AI Service Portal (multilingual civic assistant)
-
-These projects demonstrate consistent experience in building **AI-native systems across domains**.
+this repository is based on the original open-source project and retains the mit license. modifications in this fork should be documented separately from the original implementation.
